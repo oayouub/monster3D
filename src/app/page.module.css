@@ -1,8 +1,0 @@
-.page {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 50vw;  /* 50% de la largeur de la fenêtre */
-  height: 100vh; /* 100% de la hauteur de la fenêtre */
-  margin: auto; /* Centre la div horizontalement */
-}
