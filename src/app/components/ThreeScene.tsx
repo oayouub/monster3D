@@ -54,14 +54,14 @@ const ThreeScene: React.FC = () => {
     scene.add(directionalLight)
 
     const textureLoader = new TextureLoader()
-    const groundTexture = textureLoader.load('/assets/asphalt_road_3.jpg')
+    const groundTexture = textureLoader.load('/assets/cartooneGround.png')
     groundTexture.colorSpace = THREE.SRGBColorSpace
     const wallTexture = textureLoader.load('/assets/wall.png') 
     wallTexture.colorSpace = THREE.SRGBColorSpace
 
     groundTexture.wrapS = THREE.RepeatWrapping
     groundTexture.wrapT = THREE.RepeatWrapping
-    groundTexture.repeat.set(4, 4)
+    groundTexture.repeat.set(8, 8)
 
     wallTexture.wrapS = THREE.ClampToEdgeWrapping
     wallTexture.wrapT = THREE.ClampToEdgeWrapping
@@ -76,7 +76,7 @@ const ThreeScene: React.FC = () => {
     wall.receiveShadow = true
     scene.add(wall)
 
-    const planeGeometry = new THREE.PlaneGeometry(1000, 500)
+    const planeGeometry = new THREE.PlaneGeometry(1500, 500)
     const planeMaterial = new THREE.MeshStandardMaterial({ 
       map: groundTexture, 
       side: THREE.DoubleSide,
