@@ -9,6 +9,10 @@ interface Arrow {
   y: number
 }
 
+interface GameManagerProps {
+  onScore: (direction: ArrowDirection) => void
+}
+
 const arrowIcons: Record<ArrowDirection, string> = {
   left: "←",
   up: "↑",
@@ -16,7 +20,7 @@ const arrowIcons: Record<ArrowDirection, string> = {
   right: "→",
 }
 
-const GameManager: React.FC = () => {
+const GameManager: React.FC<GameManagerProps> = ({ onScore }) => {
   const [gameStarted, setGameStarted] = useState<boolean>(false)
   const [score, setScore] = useState<number>(0)
   const [errors, setErrors] = useState<number>(0)
@@ -91,6 +95,7 @@ const GameManager: React.FC = () => {
         if (hitIndex !== -1) {
           setScore((prev) => prev + 10)
           setArrows((prev) => prev.filter((_, idx) => idx !== hitIndex))
+          onScore(direction)
         } else {
           setErrors((prev) => {
             const newErrors = prev + 1
@@ -104,7 +109,7 @@ const GameManager: React.FC = () => {
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [gameStarted, gameOver, arrows])
+  }, [gameStarted, gameOver, arrows, onScore])
 
   useEffect(() => {
     if (!gameStarted || gameOver) return

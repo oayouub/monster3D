@@ -1,39 +1,53 @@
 "use client"
 
-import React, { useEffect } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import * as THREE from "three"
-import { TextureLoader } from 'three'
+import { TextureLoader } from "three"
 import { ExposureShader } from "three/examples/jsm/Addons.js"
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js"
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js"
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js"
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js"
 
-const ThreeScene: React.FC = () => {
+type AnimationDirection = "idle" | "left" | "up" | "down" | "right"
+
+interface ThreeSceneProps {
+  currentAnimation: AnimationDirection
+}
+
+const ThreeScene: React.FC<ThreeSceneProps> = ({ currentAnimation }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const sceneRef = useRef<THREE.Scene | null>(null)
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
+  const composerRef = useRef<EffectComposer | null>(null)
+  const mixerRef = useRef<THREE.AnimationMixer | null>(null)
+  const fbxLoaderRef = useRef(new FBXLoader())
+
+  const modelsRef = useRef<{ [key in AnimationDirection]?: THREE.Group }>({})
+  const mixersMapRef = useRef<{ [key in AnimationDirection]?: THREE.AnimationMixer }>({})
+
+  const [modelsLoaded, setModelsLoaded] = useState(false)
+
   useEffect(() => {
     const scene = new THREE.Scene()
     scene.background = new THREE.Color("#eae0d5")
+    sceneRef.current = scene
 
-    const renderer = new THREE.WebGLRenderer({
-      canvas: document.querySelector("#canvas") as HTMLCanvasElement,
-      antialias: true
-    })
+    const canvas = canvasRef.current!
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
     renderer.setPixelRatio(window.devicePixelRatio)
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    rendererRef.current = renderer
 
     const containerWidth = window.innerWidth
     const containerHeight = window.innerHeight
     const aspectRatio = containerWidth / containerHeight
-
-    const camera = new THREE.PerspectiveCamera(
-      75,
-      aspectRatio,
-      0.1,
-      1000
-    )
+    const camera = new THREE.PerspectiveCamera(75, aspectRatio, 0.1, 1000)
     camera.position.set(0, 7, 10)
     camera.lookAt(0, 0, 0)
+    cameraRef.current = camera
 
     renderer.setSize(containerWidth, containerHeight)
 
@@ -54,34 +68,32 @@ const ThreeScene: React.FC = () => {
     scene.add(directionalLight)
 
     const textureLoader = new TextureLoader()
-    const groundTexture = textureLoader.load('/assets/cartooneGround.png')
+    const groundTexture = textureLoader.load("/assets/cartooneGround.png")
     groundTexture.colorSpace = THREE.SRGBColorSpace
-    const wallTexture = textureLoader.load('/assets/wall.png') 
-    wallTexture.colorSpace = THREE.SRGBColorSpace
-
     groundTexture.wrapS = THREE.RepeatWrapping
     groundTexture.wrapT = THREE.RepeatWrapping
     groundTexture.repeat.set(8, 8)
-
+    const wallTexture = textureLoader.load("/assets/wall.png")
+    wallTexture.colorSpace = THREE.SRGBColorSpace
     wallTexture.wrapS = THREE.ClampToEdgeWrapping
     wallTexture.wrapT = THREE.ClampToEdgeWrapping
 
     const wallGeometry = new THREE.PlaneGeometry(1500, 700)
-    const wallMaterial = new THREE.MeshStandardMaterial({ 
+    const wallMaterial = new THREE.MeshStandardMaterial({
       map: wallTexture,
       side: THREE.DoubleSide,
     })
     const wall = new THREE.Mesh(wallGeometry, wallMaterial)
-    wall.position.set(0, 0, -250) 
+    wall.position.set(0, 0, -250)
     wall.receiveShadow = true
     scene.add(wall)
 
     const planeGeometry = new THREE.PlaneGeometry(1500, 500)
-    const planeMaterial = new THREE.MeshStandardMaterial({ 
-      map: groundTexture, 
+    const planeMaterial = new THREE.MeshStandardMaterial({
+      map: groundTexture,
       side: THREE.DoubleSide,
       roughness: 0.8,
-      metalness: 0.1
+      metalness: 0.1,
     })
     const plane = new THREE.Mesh(planeGeometry, planeMaterial)
     plane.rotation.x = -Math.PI / 2
@@ -92,62 +104,20 @@ const ThreeScene: React.FC = () => {
     const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x8d6e63, 5)
     scene.add(hemisphereLight)
 
-    let mixer: THREE.AnimationMixer
-    const clock = new THREE.Clock()
-
-    const fbxLoader = new FBXLoader()
-    fbxLoader.load("/assets/idleBoy.fbx", (object) => {
-      const box = new THREE.Box3().setFromObject(object)
-      const center = new THREE.Vector3()
-      const size = new THREE.Vector3()
-      box.getCenter(center)
-      box.getSize(size)
-      object.position.y -= center.y
-      object.position.x = 150
-      object.rotation.y = Math.PI / -4
-    
-      object.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          child.castShadow = true
-          child.receiveShadow = true
-    
-          const material = child.material as THREE.MeshStandardMaterial | THREE.MeshPhongMaterial
-          if (material.map) {
-            material.map.colorSpace = THREE.SRGBColorSpace
-          }
-        }
-      })
-    
-      scene.add(object)
-    
-      mixer = new THREE.AnimationMixer(object)
-      if (object.animations && object.animations.length > 0) {
-        const action = mixer.clipAction(object.animations[0])
-        action.play()
-      }
-    
-      const maxDim = Math.max(size.x, size.y, size.z)
-      const fov = camera.fov * (Math.PI / 180)
-      const cameraZ = maxDim / (2 * Math.tan(fov / 2))
-      camera.position.set(0, 0, cameraZ * 1.5)
-      camera.lookAt(0, 0, 0)
-    })
-
     const composer = new EffectComposer(renderer)
     const renderPass = new RenderPass(scene, camera)
     composer.addPass(renderPass)
-
     const shader = new ShaderPass(ExposureShader)
     composer.addPass(shader)
+    composerRef.current = composer
 
-    function animate() {
+    const clock = new THREE.Clock()
+    const animate = () => {
       requestAnimationFrame(animate)
-      
-      if (mixer) {
+      if (mixerRef.current) {
         const delta = clock.getDelta()
-        mixer.update(delta)
+        mixerRef.current.update(delta)
       }
-      
       composer.render()
     }
     animate()
@@ -156,21 +126,122 @@ const ThreeScene: React.FC = () => {
       const newWidth = window.innerWidth
       const newHeight = window.innerHeight
       const newAspectRatio = newWidth / newHeight
-      
-      camera.aspect = newAspectRatio
-      camera.updateProjectionMatrix()
+      if (cameraRef.current) {
+        cameraRef.current.aspect = newAspectRatio
+        cameraRef.current.updateProjectionMatrix()
+      }
       renderer.setSize(newWidth, newHeight)
       composer.setSize(newWidth, newHeight)
     }
-
-    window.addEventListener('resize', handleResize)
-
-    return () => {
-      window.removeEventListener('resize', handleResize)
-    }
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
   }, [])
 
-  return <canvas id="canvas">Loading...</canvas>
+  useEffect(() => {
+    if (!sceneRef.current) return
+
+    const modelMapping: { [key in AnimationDirection]: string } = {
+      idle: "/assets/idleBoy.fbx",
+      left: "/assets/leftAnimation.fbx",
+      up: "/assets/upAnimation.fbx",
+      down: "/assets/downAnimation.fbx",
+      right: "/assets/rightAnimation.fbx",
+    }
+
+    const loadModel = (direction: AnimationDirection, filePath: string) => {
+      return new Promise<{ direction: AnimationDirection; object: THREE.Group }>(
+        (resolve, reject) => {
+          fbxLoaderRef.current.load(
+            filePath,
+            (object) => {
+              const box = new THREE.Box3().setFromObject(object)
+              const center = new THREE.Vector3()
+              box.getCenter(center)
+              object.position.y -= center.y
+              object.position.x = 150
+              object.rotation.y = -Math.PI / 4
+              object.visible = false
+
+              object.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                  child.castShadow = true
+                  child.receiveShadow = true
+                  const material = child.material as THREE.MeshStandardMaterial | THREE.MeshPhongMaterial
+                  if (material.map) {
+                    material.map.colorSpace = THREE.SRGBColorSpace
+                  }
+                }
+              })
+              resolve({ direction, object })
+            },
+            undefined,
+            (error) => {
+              console.error("Erreur de chargement pour", filePath, error)
+              reject(error)
+            }
+          )
+        }
+      )
+    }
+
+    const loadAllModels = async () => {
+      try {
+        const entries = Object.entries(modelMapping) as [AnimationDirection, string][]
+        const models = await Promise.all(
+          entries.map(([direction, filePath]) => loadModel(direction, filePath))
+        )
+        models.forEach(({ direction, object }) => {
+          sceneRef.current!.add(object)
+          modelsRef.current[direction] = object
+
+          const mixer = new THREE.AnimationMixer(object)
+          if (object.animations && object.animations.length > 0) {
+            const action = mixer.clipAction(object.animations[0])
+            action.play()
+          }
+          mixersMapRef.current[direction] = mixer
+
+          if (direction === currentAnimation) {
+            mixerRef.current = mixer
+          }
+        })
+        setModelsLoaded(true)
+      } catch (error) {
+        console.error("Erreur lors du chargement des modèles", error)
+      }
+    }
+    loadAllModels()
+  }, [])
+
+  useEffect(() => {
+    if (!modelsLoaded) return
+    Object.keys(modelsRef.current).forEach((key) => {
+      const direction = key as AnimationDirection
+      const model = modelsRef.current[direction]
+      if (model) {
+        model.visible = direction === currentAnimation
+      }
+    })
+    mixerRef.current = mixersMapRef.current[currentAnimation] || null
+
+    const activeModel = modelsRef.current[currentAnimation]
+    if (activeModel && cameraRef.current) {
+      const size = new THREE.Vector3()
+      new THREE.Box3().setFromObject(activeModel).getSize(size)
+      const maxDim = Math.max(size.x, size.y, size.z)
+      const fov = cameraRef.current.fov * (Math.PI / 180)
+      const cameraZ = maxDim / (2 * Math.tan(fov / 2))
+      cameraRef.current.position.set(0, 0, cameraZ * 1.5)
+      cameraRef.current.lookAt(0, 0, 0)
+    }
+  }, [currentAnimation, modelsLoaded])
+
+  return (
+    <>
+      {!modelsLoaded && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh '}}>Loading</div>}
+      <canvas id="canvas" ref={canvasRef} style={{ display: modelsLoaded ? "block" : "none" }} />
+    </>
+  )
 }
 
 export default ThreeScene
