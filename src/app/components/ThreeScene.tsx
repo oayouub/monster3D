@@ -8,6 +8,7 @@ import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js"
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js"
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js"
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js"
+import { GlitchPass } from "three/examples/jsm/postprocessing/GlitchPass.js"
 
 export type AnimationDirection = "idle" | "left" | "up" | "down" | "right" | "miss"
 
@@ -24,6 +25,7 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({ currentAnimation, onLoaded }) =
   const composerRef = useRef<EffectComposer | null>(null)
   const mixerRef = useRef<THREE.AnimationMixer | null>(null)
   const fbxLoaderRef = useRef(new FBXLoader())
+  const glitchPassRef = useRef<GlitchPass | null>(null)
 
   const modelsRef = useRef<{ [key in AnimationDirection]?: THREE.Group }>({})
   const mixersMapRef = useRef<{ [key in AnimationDirection]?: THREE.AnimationMixer }>({})
@@ -106,11 +108,19 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({ currentAnimation, onLoaded }) =
     const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x8d6e63, 5)
     scene.add(hemisphereLight)
 
+    // Configuration du composer et des passes de post-traitement
     const composer = new EffectComposer(renderer)
     const renderPass = new RenderPass(scene, camera)
     composer.addPass(renderPass)
     const shader = new ShaderPass(ExposureShader)
     composer.addPass(shader)
+
+    // Création du GlitchPass, désactivé par défaut
+    const glitchPass = new GlitchPass()
+    glitchPass.enabled = false
+    glitchPassRef.current = glitchPass
+    composer.addPass(glitchPass)
+
     composerRef.current = composer
 
     const clock = new THREE.Clock()
@@ -304,6 +314,25 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({ currentAnimation, onLoaded }) =
       }
     }
   }, [currentAnimation, modelsLoaded, isPlayingSequence])
+
+  // Activation de l'effet glitch uniquement lorsque currentAnimation est "miss"
+  useEffect(() => {
+    if (glitchPassRef.current) {
+      if (currentAnimation === "miss") {
+        glitchPassRef.current.enabled = true
+        glitchPassRef.current.goWild = true
+        setTimeout(() => {
+          if (glitchPassRef.current) {
+            glitchPassRef.current.enabled = false
+            glitchPassRef.current.goWild = false
+          }
+        }, 500) // Durée de l'effet glitch
+      } else {
+        glitchPassRef.current.enabled = false
+        glitchPassRef.current.goWild = false
+      }
+    }
+  }, [currentAnimation])
 
   useEffect(() => {
     if (modelsLoaded && onLoaded) {
