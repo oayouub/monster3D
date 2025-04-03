@@ -1,16 +1,20 @@
-"use client"
-import React, { useState, useEffect, useRef } from "react"
+"use client";
 
-type ArrowDirection = "left" | "up" | "down" | "right"
+import React, { useState, useEffect, useRef } from "react";
+
+type ArrowDirection = "left" | "up" | "down" | "right";
+type AnimationType = ArrowDirection | "miss";
 
 interface Arrow {
-  id: number
-  direction: ArrowDirection
-  y: number
+  id: number;
+  direction: ArrowDirection;
+  y: number;
 }
 
 interface GameManagerProps {
-  onScore: (direction: ArrowDirection) => void
+  onScore: (direction: AnimationType) => void;
+  onStartGame?: () => void;
+  onGameOver?: () => void;
 }
 
 const arrowIcons: Record<ArrowDirection, string> = {
@@ -18,72 +22,71 @@ const arrowIcons: Record<ArrowDirection, string> = {
   up: "↑",
   down: "↓",
   right: "→",
-}
+};
 
-const GameManager: React.FC<GameManagerProps> = ({ onScore }) => {
-  const [gameStarted, setGameStarted] = useState<boolean>(false)
-  const [score, setScore] = useState<number>(0)
-  const [errors, setErrors] = useState<number>(0)
-  const [arrows, setArrows] = useState<Arrow[]>([])
-  const [gameOver, setGameOver] = useState<boolean>(false)
-  const arrowIdRef = useRef<number>(0)
+const GameManager: React.FC<GameManagerProps> = ({ onScore, onStartGame, onGameOver }) => {
+  const [gameStarted, setGameStarted] = useState(false);
+  const [score, setScore] = useState(0);
+  const [errors, setErrors] = useState(0);
+  const [arrows, setArrows] = useState<Arrow[]>([]);
+  const [gameOver, setGameOver] = useState(false);
+  const arrowIdRef = useRef(0);
 
-  const arrowSpeed = 2
-  const spawnInterval = 1000
-  const updateInterval = 16
-  const hitZoneTop = 300
-  const hitZoneBottom = 350
+  const arrowSpeed = 2;
+  const spawnInterval = 1000;
+  const updateInterval = 16;
+  const hitZoneTop = 300;
+  const hitZoneBottom = 350;
 
   const startGame = () => {
-    setScore(0)
-    setErrors(0)
-    setArrows([])
-    setGameOver(false)
-    arrowIdRef.current = 0
-    setGameStarted(true)
-  }
+    setScore(0);
+    setErrors(0);
+    setArrows([]);
+    setGameOver(false);
+    arrowIdRef.current = 0;
+    setGameStarted(true);
+
+    if (onStartGame) onStartGame();
+  };
 
   const spawnArrow = () => {
-    const directions: ArrowDirection[] = ["left", "up", "down", "right"]
-    const randomDirection =
-      directions[Math.floor(Math.random() * directions.length)]
+    const directions: ArrowDirection[] = ["left", "up", "down", "right"];
+    const randomDirection = directions[Math.floor(Math.random() * directions.length)];
     const newArrow: Arrow = {
       id: arrowIdRef.current++,
       direction: randomDirection,
       y: 0,
-    }
-    setArrows((prev) => [...prev, newArrow])
-  }
+    };
+    setArrows((prev) => [...prev, newArrow]);
+  };
 
   useEffect(() => {
-    if (!gameStarted || gameOver) return
+    if (!gameStarted || gameOver) return;
     const interval = setInterval(() => {
       setArrows((prev) =>
         prev.map((arrow) => ({
           ...arrow,
           y: arrow.y + arrowSpeed,
         }))
-      )
-    }, updateInterval)
-    return () => clearInterval(interval)
-  }, [gameStarted, gameOver])
+      );
+    }, updateInterval);
+    return () => clearInterval(interval);
+  }, [gameStarted, gameOver]);
 
   useEffect(() => {
-    if (!gameStarted || gameOver) return
-    const interval = setInterval(() => {
-      spawnArrow()
-    }, spawnInterval)
-    return () => clearInterval(interval)
-  }, [gameStarted, gameOver])
+    if (!gameStarted || gameOver) return;
+    const interval = setInterval(spawnArrow, spawnInterval);
+    return () => clearInterval(interval);
+  }, [gameStarted, gameOver]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!gameStarted || gameOver) return
-      let direction: ArrowDirection | null = null
-      if (e.key === "ArrowLeft") direction = "left"
-      else if (e.key === "ArrowRight") direction = "right"
-      else if (e.key === "ArrowUp") direction = "up"
-      else if (e.key === "ArrowDown") direction = "down"
+      if (!gameStarted || gameOver) return;
+      let direction: ArrowDirection | "miss" | null = null;
+      if (e.key === "ArrowLeft") direction = "left";
+      else if (e.key === "ArrowRight") direction = "right";
+      else if (e.key === "ArrowUp") direction = "up";
+      else if (e.key === "ArrowDown") direction = "down";
 
       if (direction) {
         const hitIndex = arrows.findIndex(
@@ -91,56 +94,66 @@ const GameManager: React.FC<GameManagerProps> = ({ onScore }) => {
             arrow.direction === direction &&
             arrow.y >= hitZoneTop &&
             arrow.y <= hitZoneBottom
-        )
+        );
         if (hitIndex !== -1) {
-          setScore((prev) => prev + 10)
-          setArrows((prev) => prev.filter((_, idx) => idx !== hitIndex))
-          onScore(direction)
+          setScore((prev) => prev + 10);
+          setArrows((prev) => prev.filter((_, idx) => idx !== hitIndex));
+          onScore(direction);
         } else {
+          onScore("miss");
           setErrors((prev) => {
-            const newErrors = prev + 1
+            const newErrors = prev + 1;
             if (newErrors >= 3) {
-              setGameOver(true)
+              setGameOver(true);
+              if (onGameOver) onGameOver();
             }
-            return newErrors
-          })
+            return newErrors;
+          });
         }
       }
-    }
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [gameStarted, gameOver, arrows, onScore])
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [gameStarted, gameOver, arrows, onScore, onGameOver]);
 
   useEffect(() => {
-    if (!gameStarted || gameOver) return
-    const remainingArrows = arrows.filter((arrow) => arrow.y <= 400)
+    if (!gameStarted || gameOver) return;
+    const remainingArrows = arrows.filter((arrow) => arrow.y <= 400);
     if (remainingArrows.length !== arrows.length) {
-      const missed = arrows.length - remainingArrows.length
+      const missed = arrows.length - remainingArrows.length;
       setErrors((prev) => {
-        const newErrors = prev + missed
+        const newErrors = prev + missed;
         if (newErrors >= 3) {
-          setGameOver(true)
+          setGameOver(true);
+          if (onGameOver) onGameOver();
         }
-        return newErrors
-      })
-      setArrows(remainingArrows)
+        return newErrors;
+      });
+      setArrows(remainingArrows);
     }
-  }, [gameStarted, gameOver, arrows])
+  }, [gameStarted, gameOver, arrows, onGameOver]);
 
   return (
-    <div style={{ fontFamily: "Monospace"  }}>
+    <div style={{ fontFamily: "Monospace" }}>
       {!gameStarted ? (
-        <div style={{ width: '25vw', height: '25vw', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <div
+          style={{
+            width: "25vw",
+            height: "25vw",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
           <button
             onClick={startGame}
             style={{
               fontSize: "1.5rem",
               padding: "10px 50px",
-              justifyContent: "center",
-              alignItems: "center",
-              boxShadow: "0 0 10px rgba(0, 0, 0, 0.5)",
-              backgroundColor: 'rgb(255, 185, 46)',
+              backgroundColor: "rgb(255, 185, 46)",
               borderRadius: "5px",
+              boxShadow: "0 0 10px rgba(0,0,0,0.5)",
               cursor: "pointer",
             }}
           >
@@ -149,29 +162,21 @@ const GameManager: React.FC<GameManagerProps> = ({ onScore }) => {
         </div>
       ) : (
         <>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              color: "white",
-            }}
-          >
+          <div style={{ display: "flex", justifyContent: "space-between", color: "white" }}>
             <p style={{ fontSize: "1.5rem" }}>Score : {score}</p>
             <p style={{ fontSize: "1.5rem" }}>Failed : {errors} / 3</p>
           </div>
           {gameOver && (
             <div style={{ textAlign: "center", padding: "10px" }}>
-              <h2 style={{ color: 'white' }}>GAME OVER</h2>
+              <h2 style={{ color: "white" }}>GAME OVER</h2>
               <button
                 onClick={startGame}
                 style={{
                   fontSize: "1.5rem",
                   padding: "10px 50px",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  boxShadow: "0 0 10px rgba(0, 0, 0, 0.5)",
-                  backgroundColor: 'rgb(255, 185, 46)',
+                  backgroundColor: "rgb(255, 185, 46)",
                   borderRadius: "5px",
+                  boxShadow: "0 0 10px rgba(0,0,0,0.5)",
                   cursor: "pointer",
                 }}
               >
@@ -239,7 +244,7 @@ const GameManager: React.FC<GameManagerProps> = ({ onScore }) => {
         </>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default GameManager
+export default GameManager;

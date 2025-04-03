@@ -2,8 +2,12 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  font-family: 'MyCustomFont', sans-serif;
 }
 
+body{
+  font-family: 'MyCustomFont', sans-serif;
+}
 .main{
   display: flex;
   width: 100%;
@@ -24,4 +28,12 @@
 .scene{
   width: 100%;
   overflow: hidden;
+}
+
+@font-face {
+  font-family: 'MyCustomFont';
+  src: url('/font/AmanzincGrafiti.ttf') format('woff2'),
+       url('/font/AmanzincGrafiti.ttf') format('woff');
+  font-weight: normal;
+  font-style: normal;
 }
