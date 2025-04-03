@@ -108,14 +108,12 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({ currentAnimation, onLoaded }) =
     const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x8d6e63, 5)
     scene.add(hemisphereLight)
 
-    // Configuration du composer et des passes de post-traitement
     const composer = new EffectComposer(renderer)
     const renderPass = new RenderPass(scene, camera)
     composer.addPass(renderPass)
     const shader = new ShaderPass(ExposureShader)
     composer.addPass(shader)
 
-    // Création du GlitchPass, désactivé par défaut
     const glitchPass = new GlitchPass()
     glitchPass.enabled = false
     glitchPassRef.current = glitchPass
@@ -315,7 +313,6 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({ currentAnimation, onLoaded }) =
     }
   }, [currentAnimation, modelsLoaded, isPlayingSequence])
 
-  // Activation de l'effet glitch uniquement lorsque currentAnimation est "miss"
   useEffect(() => {
     if (glitchPassRef.current) {
       if (currentAnimation === "miss") {
@@ -326,7 +323,7 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({ currentAnimation, onLoaded }) =
             glitchPassRef.current.enabled = false
             glitchPassRef.current.goWild = false
           }
-        }, 500) // Durée de l'effet glitch
+        }, 500) 
       } else {
         glitchPassRef.current.enabled = false
         glitchPassRef.current.goWild = false
